@@ -7,8 +7,8 @@ import schemas, crud
 from auth import verify_password, create_access_token
 from datetime import timedelta
 
-Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+# Base.metadata.drop_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Image Gallery API")
 
