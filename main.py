@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import crud
 import schemas
 from models import User, Photo, Subject
-from database import SessionLocal
+from database import SessionLocal, Base, engine
 from auth import get_current_user, verify_password, create_access_token
 from crypto_utils import encrypt_image
 
@@ -128,6 +128,14 @@ async def get_photo(
         content=decrypted_data,
         media_type=photo.mime_type
     )
+
+@app.get("/photos/", response_model=list[schemas.PhotoOut])
+def get_user_photos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    photos = db.query(Photo).filter(Photo.owner_id == current_user.id).all()
+    return photos
 
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8000)
