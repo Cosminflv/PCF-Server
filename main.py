@@ -147,7 +147,7 @@ def get_user_subjects(
 
 @app.post("/subject/", response_model=schemas.SubjectOut)
 def create_subject(
-        name: str,
+        name: str = Form(...),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ) :
