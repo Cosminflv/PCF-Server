@@ -145,5 +145,20 @@ def get_user_subjects(
     subjects = db.query(Subject).filter(Subject.user_id == current_user.id).all()
     return subjects
 
+@app.post("/subject/", response_model=schemas.SubjectOut)
+def create_subject(
+        name: str,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+) :
+    subject = Subject(name=name, user_id=current_user.id)
+
+    db.add(subject)
+    db.commit()
+    db.refresh(subject)
+
+    return subject
+
+
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8000)
