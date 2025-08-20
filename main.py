@@ -4,6 +4,7 @@ from datetime import timedelta
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from sqlalchemy.orm import Session
+from starlette import status
 
 import crud
 import schemas
@@ -145,14 +146,20 @@ def get_user_subjects(
     subjects = db.query(Subject).filter(Subject.user_id == current_user.id).all()
     return subjects
 
-@app.post("/subject/", response_model=schemas.SubjectOut)
+@app.post("/subject/", response_model=schemas.SubjectOut, status_code=status.HTTP_201_CREATED)
 def create_subject(
-        name: str = Form(...),
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user)
-) :
-    subject = Subject(name=name, user_id=current_user.id)
+    name: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # find existing subject (first() returns an instance or None)
+    found_subject = db.query(Subject).filter_by(user_id=current_user.id, name=name).first()
 
+    if found_subject:
+        # either return existing or raise a 409 conflict
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Subject already exists")
+
+    subject = Subject(name=name, user_id=current_user.id)
     db.add(subject)
     db.commit()
     db.refresh(subject)
