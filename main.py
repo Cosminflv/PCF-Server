@@ -137,5 +137,13 @@ def get_user_photos(
     photos = db.query(Photo).filter(Photo.owner_id == current_user.id).all()
     return photos
 
+@app.get("/subjects/", response_model=list[schemas.SubjectOut])
+def get_user_subjects(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    subjects = db.query(Subject).filter(Subject.user_id == current_user.id).all()
+    return subjects
+
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8000)

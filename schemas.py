@@ -35,7 +35,8 @@ class PhotoOut(PhotoBase):
     id: int
     uploaded_at: datetime
     owner_id: int
-    subject_id: Optional[int]
+    subject_id: Optional[int] = None
+    subject_name: Optional[str] = None
     mime_type: str
 
     class Config:
