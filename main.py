@@ -207,6 +207,38 @@ def duplicate_photo(
 
     return duplicated_photo
 
+@app.patch("/photos/{photo_id}/subject", response_model=schemas.PhotoOut)
+def update_photo_subject(
+    photo_id: int,
+    subject_name: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    photo = db.query(Photo).filter(
+        Photo.id == photo_id,
+        Photo.owner_id == current_user.id
+    ).first()
+
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    subject = None
+    if subject_name:
+        subject = db.query(Subject).filter(
+            Subject.name == subject_name,
+            Subject.user_id == current_user.id
+        ).first()
+        if not subject:
+            subject = Subject(name=subject_name, user_id=current_user.id)
+            db.add(subject)
+            db.commit()
+            db.refresh(subject)
+
+    photo.subject_id = subject.id if subject else None
+    db.commit()
+    db.refresh(photo)
+
+    return photo
 
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8000)
