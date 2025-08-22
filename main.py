@@ -166,6 +166,47 @@ def create_subject(
 
     return subject
 
+@app.post("/photos/{photo_id}/duplicate", response_model=schemas.PhotoOut)
+def duplicate_photo(
+    photo_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Get the original photo
+    original_photo = db.query(Photo).filter(
+        Photo.id == photo_id,
+        Photo.owner_id == current_user.id
+    ).first()
+
+    if not original_photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    filename_parts = original_photo.filename.split('.')
+    if len(filename_parts) > 1:
+        base_name = '.'.join(filename_parts[:-1])
+        extension = filename_parts[-1]
+        new_filename = f"{base_name}_duplicated.{extension}"
+    else:
+        new_filename = f"{original_photo.filename}_duplicated"
+
+    duplicated_photo = Photo(
+        filename=new_filename,
+        encrypted_data=original_photo.encrypted_data,
+        encryption_salt=original_photo.encryption_salt,
+        nonce=original_photo.nonce,
+        tag=original_photo.tag,
+        mime_type=original_photo.mime_type,
+        owner_id=current_user.id,
+        subject_id=original_photo.subject_id,
+        filter_applied=original_photo.filter_applied
+    )
+
+    db.add(duplicated_photo)
+    db.commit()
+    db.refresh(duplicated_photo)
+
+    return duplicated_photo
+
 
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8000)
