@@ -1,5 +1,4 @@
 # main.py
-import base64
 from datetime import timedelta
 
 import numpy as np
@@ -17,6 +16,8 @@ from crypto_utils import encrypt_image
 
 from PIL import Image, ImageOps
 import io
+
+from subject_predictor import predict_image
 
 # Base.metadata.drop_all(bind=engine)
 # Base.metadata.create_all(bind=engine)
@@ -63,10 +64,14 @@ async def upload_photo(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
-    # Citirea imaginii
     image_data = await file.read()
 
-    # Criptarea imaginii
+    if subject_name == 'noSubject':
+        try:
+            subject_name = predict_image(image_data)
+        except Exception as e:
+            subject_name = "unclassified"
+
     encrypted_data, salt, nonce, tag = encrypt_image(image_data, gallery_password)
 
     # Gestionare subiect
