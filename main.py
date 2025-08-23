@@ -2,6 +2,7 @@
 import base64
 from datetime import timedelta
 
+import numpy as np
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -304,24 +305,16 @@ async def apply_filter_to_photo(
         # Apply selected filter
         if filter_name == "sepia":
             # Sepia filter implementation
-            width, height = image.size
-            pixels = image.load()
+            img_array = np.array(image)
 
-            for py in range(height):
-                for px in range(width):
-                    r, g, b = image.getpixel((px, py))
+            sepia_matrix = np.array([
+                [0.393, 0.769, 0.189],
+                [0.349, 0.686, 0.168],
+                [0.272, 0.534, 0.131]
+            ])
 
-                    tr = int(0.393 * r + 0.769 * g + 0.189 * b)
-                    tg = int(0.349 * r + 0.686 * g + 0.168 * b)
-                    tb = int(0.272 * r + 0.534 * g + 0.131 * b)
-
-                    # Ensure values are within 0-255 range
-                    tr = min(255, tr)
-                    tg = min(255, tg)
-                    tb = min(255, tb)
-
-                    pixels[px, py] = (tr, tg, tb)
-            filtered_image = image
+            transformed_sepia = np.dot(img_array, sepia_matrix.T).clip(0, 255).astype(np.uint8)
+            filtered_image = Image.fromarray(transformed_sepia)
 
         elif filter_name == "black and white":
             # Convert to grayscale
