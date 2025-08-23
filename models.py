@@ -33,13 +33,19 @@ class Photo(Base):
     filter_applied = Column(String, nullable=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Câmpuri pentru stocarea criptată
+    # Fields for the original encrypted image
+    original_encrypted_data = Column(LargeBinary, nullable=False)
+    original_encryption_salt = Column(LargeBinary, nullable=False)
+    original_nonce = Column(LargeBinary, nullable=False)
+    original_tag = Column(LargeBinary, nullable=False)
+
+    # Fields for the current (possibly filtered) encrypted image
     encrypted_data = Column(LargeBinary, nullable=False)
     encryption_salt = Column(LargeBinary, nullable=False)
     nonce = Column(LargeBinary, nullable=False)
     tag = Column(LargeBinary, nullable=False)
-    mime_type = Column(String, nullable=False)  # Tipul MIME al imaginii
 
+    mime_type = Column(String, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"))
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
 
