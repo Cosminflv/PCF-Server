@@ -8,7 +8,6 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 
 from database import SessionLocal
 from models import User
-from utils import verify_password  # rămâne importul pentru verificarea parolei
 
 SECRET_KEY = "your_fixed_secret_key_which_is_at_least_32_bytes_long"
 ALGORITHM = "HS256"
@@ -73,3 +72,7 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+
+def verify_hashed_password(hashed_password: str, stored_hash: str) -> bool:
+    # Compare the client-side hash with the stored hash
+    return hashed_password == stored_hash

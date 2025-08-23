@@ -11,7 +11,7 @@ import crud
 import schemas
 from models import User, Photo, Subject
 from database import SessionLocal, Base, engine
-from auth import get_current_user, verify_password, create_access_token
+from auth import get_current_user, create_access_token, verify_hashed_password
 from crypto_utils import encrypt_image
 
 from PIL import Image, ImageOps
@@ -33,7 +33,6 @@ def get_db():
         db.close()
 
 
-# Endpoint pentru înregistrare
 @app.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
@@ -42,11 +41,10 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_user(db, user.username, user.password)
 
 
-# Endpoint pentru autentificare
 @app.post("/login", response_model=schemas.Token)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
+    if not db_user or not verify_hashed_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token_expires = timedelta(minutes=30)
@@ -87,7 +85,6 @@ async def upload_photo(
             db.commit()
             db.refresh(subject)
 
-    # Crearea înregistrării foto
     photo = Photo(
         filename=file.filename,
         original_encrypted_data=encrypted_data,
