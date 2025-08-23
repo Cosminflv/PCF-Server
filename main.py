@@ -1,4 +1,5 @@
 # main.py
+import base64
 from datetime import timedelta
 
 import uvicorn
@@ -12,6 +13,9 @@ from models import User, Photo, Subject
 from database import SessionLocal, Base, engine
 from auth import get_current_user, verify_password, create_access_token
 from crypto_utils import encrypt_image
+
+from PIL import Image, ImageOps
+import io
 
 # Base.metadata.drop_all(bind=engine)
 # Base.metadata.create_all(bind=engine)
@@ -80,6 +84,10 @@ async def upload_photo(
     # Crearea înregistrării foto
     photo = Photo(
         filename=file.filename,
+        original_encrypted_data=encrypted_data,
+        original_encryption_salt=salt,
+        original_nonce=nonce,
+        original_tag=tag,
         encrypted_data=encrypted_data,
         encryption_salt=salt,
         nonce=nonce,
@@ -235,6 +243,118 @@ def update_photo_subject(
             db.refresh(subject)
 
     photo.subject_id = subject.id if subject else None
+    db.commit()
+    db.refresh(photo)
+
+    return photo
+
+
+@app.patch("/photos/{photo_id}/filter", response_model=schemas.PhotoOut)
+async def apply_filter_to_photo(
+        photo_id: int,
+        filter_name: str = Form(...),
+        gallery_password: str = Form(...),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+):
+    # Get the photo
+    photo = db.query(Photo).filter(
+        Photo.id == photo_id,
+        Photo.owner_id == current_user.id
+    ).first()
+
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    # For the "none" filter, restore the original image
+    if filter_name == "none":
+        # Simply restore the original encrypted data
+        photo.encrypted_data = photo.original_encrypted_data
+        photo.encryption_salt = photo.original_encryption_salt
+        photo.nonce = photo.original_nonce
+        photo.tag = photo.original_tag
+        photo.filter_applied = None
+
+        db.commit()
+        db.refresh(photo)
+        return photo
+
+    # For other filters, decrypt the original image and apply the filter
+    try:
+        # Decrypt the original image
+        decrypted_data = decrypt_image(
+            photo.original_encrypted_data,
+            photo.original_encryption_salt,
+            photo.original_nonce,
+            photo.original_tag,
+            gallery_password
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Decryption failed")
+
+    # Apply filter
+    try:
+        # Open image from bytes
+        image = Image.open(io.BytesIO(decrypted_data))
+
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+
+        # Apply selected filter
+        if filter_name == "sepia":
+            # Sepia filter implementation
+            width, height = image.size
+            pixels = image.load()
+
+            for py in range(height):
+                for px in range(width):
+                    r, g, b = image.getpixel((px, py))
+
+                    tr = int(0.393 * r + 0.769 * g + 0.189 * b)
+                    tg = int(0.349 * r + 0.686 * g + 0.168 * b)
+                    tb = int(0.272 * r + 0.534 * g + 0.131 * b)
+
+                    # Ensure values are within 0-255 range
+                    tr = min(255, tr)
+                    tg = min(255, tg)
+                    tb = min(255, tb)
+
+                    pixels[px, py] = (tr, tg, tb)
+            filtered_image = image
+
+        elif filter_name == "black and white":
+            # Convert to grayscale
+            filtered_image = image.convert('L').convert('RGB')
+
+        elif filter_name == "color inversion":
+            # Invert colors
+            filtered_image = ImageOps.invert(image)
+
+        else:
+            raise HTTPException(status_code=400,
+                                detail="Invalid filter name. Available filters: none, sepia, black and white, color inversion")
+
+        # Convert back to bytes
+        img_byte_arr = io.BytesIO()
+        # Preserve the original format if possible, otherwise use JPEG
+        format = image.format if image.format else 'JPEG'
+        filtered_image.save(img_byte_arr, format=format)
+        filtered_data = img_byte_arr.getvalue()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error applying filter: {str(e)}")
+
+    # Re-encrypt the filtered image with the same password
+    encrypted_data, salt, nonce, tag = encrypt_image(filtered_data, gallery_password)
+
+    # Update the photo record with the filtered version
+    photo.encrypted_data = encrypted_data
+    photo.encryption_salt = salt
+    photo.nonce = nonce
+    photo.tag = tag
+    photo.filter_applied = filter_name
+
     db.commit()
     db.refresh(photo)
 
