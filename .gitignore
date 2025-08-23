@@ -209,3 +209,4 @@ __marimo__/
 # Database
 .db
 /gallery.db
+/test.db
