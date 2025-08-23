@@ -202,6 +202,10 @@ def duplicate_photo(
 
     duplicated_photo = Photo(
         filename=new_filename,
+        original_encrypted_data=original_photo.encrypted_data,
+        original_encryption_salt=original_photo.encryption_salt,
+        original_nonce=original_photo.nonce,
+        original_tag=original_photo.tag,
         encrypted_data=original_photo.encrypted_data,
         encryption_salt=original_photo.encryption_salt,
         nonce=original_photo.nonce,
