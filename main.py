@@ -86,7 +86,17 @@ def get_user_photos(
     return photo_service.get_user_photos(current_user.id)
 
 
-@app.get("/subjects/", response_model=list[schemas.SubjectOut])
+@app.get(
+    "/subjects/",
+    response_model=list[schemas.SubjectOut],
+    summary="Get all subjects for the current user",
+    description="Retrieve the list of all subjects (categories or tags) belonging to the authenticated user.",
+    responses={
+        200: {"description": "List of subjects returned successfully"},
+        401: {"description": "Unauthorized - user authentication required"}
+    },
+    tags=["Subjects"],
+)
 def get_user_subjects(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
@@ -95,9 +105,21 @@ def get_user_subjects(
     return subject_service.get_user_subjects(current_user.id)
 
 
-@app.post("/subject/", response_model=schemas.SubjectOut, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/subject/",
+    response_model=schemas.SubjectOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new subject for the current user",
+    description="Create a subject (category or tag) with a unique name for the authenticated user.",
+    responses={
+        201: {"description": "Subject created successfully"},
+        401: {"description": "Unauthorized - user authentication required"},
+        409: {"description": "Subject with the given name already exists for this user"}
+    },
+    tags=["Subjects"],
+)
 def create_subject(
-        name: str = Form(...),
+        name: str = Form(..., example="Vacation"),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
