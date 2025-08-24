@@ -3,7 +3,7 @@ def test_register(client):
         "username": "testuser",
         "password": "testpass"
     })
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["username"] == "testuser"
 
 def test_register_negative(client):
@@ -11,7 +11,7 @@ def test_register_negative(client):
         "username": "testuser",
         "password": "testpass"
     })
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["username"] == "testuser"
 
     response = client.post("/register", json={
@@ -25,7 +25,7 @@ def test_register_negative(client):
 def test_login(client):
 
     register_response = client.post("/register", json={"username": "testuser", "password": "testpass"})
-    assert register_response.status_code == 200
+    assert register_response.status_code == 201
 
 
     response = client.post("/login",
@@ -42,7 +42,7 @@ def test_login(client):
 
 def test_login_negative(client):
     register_response = client.post("/register", json={"username": "testuser", "password": "testpass"})
-    assert register_response.status_code == 200
+    assert register_response.status_code == 201
 
     response = client.post("/login",
                            json={"username": "fail", "password": "fail"}

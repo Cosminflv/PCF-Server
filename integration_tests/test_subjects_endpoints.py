@@ -1,7 +1,7 @@
 def test_get_user_subjects(client):
     # Register a new user
     register_response = client.post("/register", json={"username": "testuser", "password": "testpass"})
-    assert register_response.status_code == 200
+    assert register_response.status_code == 201
 
     # Login to get token
     login_response = client.post("/login", json={"username": "testuser", "password": "testpass"})
@@ -35,7 +35,7 @@ def test_get_user_subjects(client):
 def test_duplicate_subjects(client):
     # Register a new user
     register_response = client.post("/register", json={"username": "testuser", "password": "testpass"})
-    assert register_response.status_code == 200
+    assert register_response.status_code == 201
 
     # Login to get token
     login_response = client.post("/login", json={"username": "testuser", "password": "testpass"})
