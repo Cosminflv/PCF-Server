@@ -191,3 +191,74 @@ def test_apply_filter_to_photo(client, db_session):
         assert response.status_code == 200
         updated_photo = response.json()
         assert updated_photo["filter_applied"] == (None if filter_name == "none" else filter_name)
+
+import pytest
+from fastapi.testclient import TestClient
+
+def test_get_photo(client: TestClient, db_session):
+    # Register and login to get auth token
+    client.post("/register", json={"username": "testuser", "password": "testpass"})
+    login_resp = client.post("/login", json={"username": "testuser", "password": "testpass"})
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Upload a photo first (reuse your helper create_test_image)
+    test_image = create_test_image()
+    upload_resp = client.post(
+        "/photos/",
+        files={"file": ("test.jpg", test_image, "image/jpeg")},
+        data={"gallery_password": "testpass", "subject_name": "my_subject"},
+        headers=headers
+    )
+    assert upload_resp.status_code == 200
+    photo_id = upload_resp.json()["id"]
+
+    # Now get the photo using the photo_id and gallery_password
+    get_resp = client.get(f"/photos/{photo_id}", params={"gallery_password": "testpass"}, headers=headers)
+    assert get_resp.status_code == 200
+    # Since this returns raw bytes, check content type header and content length
+    assert get_resp.headers["content-type"] == upload_resp.json()["mime_type"]
+    assert len(get_resp.content) > 0
+
+def test_get_photo_not_found(client):
+    # Register and login for auth token
+    client.post("/register", json={"username": "testuser", "password": "testpass"})
+    login = client.post("/login", json={"username": "testuser", "password": "testpass"})
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    print("TOKEN: ", token)
+
+    # Request a photo ID which does not exist, but ensure token is passed so auth succeeds
+    resp = client.get("/photos/999999", params={"gallery_password": "any"}, headers=headers)
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Photo not found"
+
+def test_get_photo_decryption_failure(client: TestClient, monkeypatch):
+    # Register and login
+    client.post("/register", json={"username": "testuser", "password": "testpass"})
+    login = client.post("/login", json={"username": "testuser", "password": "testpass"})
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Upload a photo normally
+    test_image = create_test_image()
+    upload_resp = client.post(
+        "/photos/",
+        files={"file": ("test.jpg", test_image, "image/jpeg")},
+        data={"gallery_password": "testpass", "subject_name": "subject"},
+        headers=headers
+    )
+
+    print("JSON: ", upload_resp.json())
+    photo_id = upload_resp.json()["id"]
+
+    # Monkeypatch decrypt_image to raise Exception to simulate failure
+    from services import photo_service
+    monkeypatch.setattr(photo_service, "decrypt_image", lambda *args, **kwargs: (_ for _ in ()).throw(Exception("fail")))
+
+    # Request the photo endpoint expecting a 400 error
+    resp = client.get(f"/photos/{photo_id}", params={"gallery_password": "testpass"}, headers=headers)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Decryption failed"
+
