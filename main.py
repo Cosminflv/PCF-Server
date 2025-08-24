@@ -15,14 +15,35 @@ import schemas
 
 app = FastAPI(title="Image Gallery API")
 
-
-@app.post("/register", response_model=schemas.UserOut)
+@app.post(
+    "/register",
+    response_model=schemas.UserOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user",
+    description="Register a user by providing a unique username and password. Returns the created user details upon success.",
+    responses={
+        201: {"description": "User registered successfully"},
+        400: {"description": "Username already registered"},
+    },
+    tags=["Authentication"],
+)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     auth_service = AuthService(db)
     return auth_service.register_user(user.username, user.password)
 
 
-@app.post("/login", response_model=schemas.Token)
+@app.post(
+    "/login",
+    response_model=schemas.Token,
+    status_code=status.HTTP_200_OK,
+    summary="Log in and obtain an access token",
+    description="Authenticate with username and password to obtain a JWT access token valid for 30 minutes.",
+    responses={
+        200: {"description": "Access token returned successfully"},
+        401: {"description": "Invalid username or password"},
+    },
+    tags=["Authentication"],
+)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     auth_service = AuthService(db)
     return auth_service.login_user(user.username, user.password)
