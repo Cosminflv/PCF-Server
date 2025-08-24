@@ -1,6 +1,4 @@
 # main.py
-from datetime import timedelta
-
 import numpy as np
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
@@ -17,6 +15,7 @@ from PIL import Image, ImageOps
 import io
 
 from services.auth_service import AuthService
+from services.subject_service import SubjectService
 from subject_predictor import predict_image
 
 # Base.metadata.drop_all(bind=engine)
@@ -136,8 +135,8 @@ def get_user_subjects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    subjects = db.query(Subject).filter(Subject.user_id == current_user.id).all()
-    return subjects
+    subject_service = SubjectService(db)
+    return subject_service.get_user_subjects(current_user.id)
 
 @app.post("/subject/", response_model=schemas.SubjectOut, status_code=status.HTTP_201_CREATED)
 def create_subject(
@@ -145,19 +144,8 @@ def create_subject(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # find existing subject (first() returns an instance or None)
-    found_subject = db.query(Subject).filter_by(user_id=current_user.id, name=name).first()
-
-    if found_subject:
-        # either return existing or raise a 409 conflict
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Subject already exists")
-
-    subject = Subject(name=name, user_id=current_user.id)
-    db.add(subject)
-    db.commit()
-    db.refresh(subject)
-
-    return subject
+    subject_service = SubjectService(db)
+    return subject_service.create_subject(name, current_user.id)
 
 @app.post("/photos/{photo_id}/duplicate", response_model=schemas.PhotoOut)
 def duplicate_photo(
