@@ -7,16 +7,16 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from sqlalchemy.orm import Session
 from starlette import status
 
-import crud
 import schemas
 from models import User, Photo, Subject
-from database import SessionLocal, Base, engine
-from auth import get_current_user, create_access_token, verify_hashed_password
+from database import get_db
+from auth import get_current_user
 from crypto_utils import encrypt_image
 
 from PIL import Image, ImageOps
 import io
 
+from services.auth_service import AuthService
 from subject_predictor import predict_image
 
 # Base.metadata.drop_all(bind=engine)
@@ -24,34 +24,16 @@ from subject_predictor import predict_image
 
 app = FastAPI(title="Image Gallery API")
 
-# Dependență pentru DB
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 @app.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_username(db, user.username)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    return crud.create_user(db, user.username, user.password)
-
+    auth_service = AuthService(db)
+    return auth_service.register_user(user.username, user.password)
 
 @app.post("/login", response_model=schemas.Token)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_username(db, user.username)
-    if not db_user or not verify_hashed_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-
-    access_token_expires = timedelta(minutes=30)
-    access_token = create_access_token(
-        data={"sub": db_user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    auth_service = AuthService(db)
+    return auth_service.login_user(user.username, user.password)
 
 
 @app.post("/photos/", response_model=schemas.PhotoOut)
